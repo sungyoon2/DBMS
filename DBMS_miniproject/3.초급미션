@@ -1,0 +1,168 @@
+-- 03. 초급 미션(view 만들기)
+-- 1. 현재 판매중인 메뉴들을 한눈에 볼 수 있는 뷰를 제작하시오.
+Select * From menu;
+Select * from menu Where Activation =1;
+Drop view currentSale;
+Create view currentSale AS Select * from menu Where Activation = 1;
+
+-- 2. 현재 판매중이 아닌(단종된) 메뉴들을 한눈에 볼 수 있는 뷰를 제작하시오.
+Select * From menu Where Activation = 0;
+Create View NoneCurrentSale As Select * From menu Where Activation = 0;
+
+-- 3. Big Americano를 더이상 판매하지 않도록 결정했습니다. 이를 db에 반영하세요.(Update)
+Select * From menu;
+Start transaction;
+Update menu set Activation = 0 Where menuName = 'Big Americano';
+commit;
+
+-- 4. 에이 설마 여태까지 한번도 판매된 적이 없는 메뉴가 있겠어? 이를 조회할 수 있는 뷰를 제작하세요.
+Select * From orderDetail;
+Select * From menu
+left outer Join orderdetail On menu.menuId = orderDetail.menuId
+Where orderdetail.orderId is null;
+Create view noneSale As Select Menuname From menu
+left outer Join orderdetail On menu.menuId = orderDetail.menuId
+Where orderdetail.orderId is null;
+
+-- 서브쿼리 이용--
+Select * from Menu Where menuId Not in ( select Distinct menuId From orderDetail);
+Create View Problem_04 
+As Select * 
+from Menu 
+Where menuId Not in ( select Distinct menuId From orderDetail);
+
+
+-- 5. 총 판매금액이 높은 순으로 10개의 메뉴들을 출력하는 뷰를 제작하세요.
+Select * from orderdetail;
+Select menu.Menuname, sum(orderDetail.price) as Totalsale From menu 
+Join orderdetail On menu.menuId = orderdetail.menuId
+Group By menu.Menuname
+Order By TotalSale Desc
+Limit 10;
+Create View RateOfSale As Select menu.Menuname, sum(orderDetail.price) as Totalsale From menu 
+Join orderdetail On menu.menuId = orderdetail.menuId
+Group By menu.Menuname
+Order By Totalsale Desc
+Limit 10;
+
+-- 6. 주문만 있고 실제 결제된 적이 없는 날을 최근 날짜 순으로 구하는 뷰를 제작하세요.
+Select * From payment;
+Select * From orders;
+Select * From orderDetail;
+Select * From orders
+Where status = 1;
+Select Orderdate from orders
+Left outer join payment On payment.orderId = orders.orderid
+Where payment.paymentId is null
+Group by Orderdate
+Order by OrderDate ASC;
+Create View Onlyordersdate As Select Orderdate from orders
+Left outer join payment On payment.orderId = orders.orderid
+Where payment.paymentId is null
+Group by Orderdate
+Order by OrderDate ASC;
+
+-- 답안 --
+Select Distinct OrderDate
+From orders
+Left Outer join Payment On orders.orderId = Payment.orderId
+Where status = 0
+Order By orderDate Asc;
+
+-- 7. 우리 매장에 고객으로 회원가입 했는데, 한번도 주문을 한적이 없는 고객이 있을까요?
+Select * From customer;
+Select * from Orders;
+Select * From customer
+left outer Join orders On customer.customerId = orders.customerId
+Where orderId is null;
+Create View noneOrders As Select Orderdate from orders
+Left outer join payment On payment.orderId = orders.orderid
+Where payment.paymentId is null
+Group by Orderdate
+Order by OrderDate Desc;
+
+-- 서브 쿼리 이용 --
+Select customerName From Customer
+Where customerId not In (Select customerId From orders);
+
+-- 8. 마케팅 동의를 한 고객들 중, 포인트 점수가 3000점 미만인 고객들에게 "고객 감사 포인트 2배 이벤트"를 진행하고자 합니다. 
+--    해당되는 고객들에게 알림톡을 보내기 위해 이름과 전화번호를 추출한 뷰를 제작하세요.
+Select * From customer;
+Select * From customer 
+Where MarketingAgree = 1 and Point < 3000;
+Create View Pointevent As Select CustomerName, CustomerPhone From customer 
+Where MarketingAgree = 1 and Point < 3000;
+
+-- 9. 정산을 위하여 일별로 카드(1), 이체(2), 현금(3) 순으로 총 결제금액 합계를 구하는 뷰를 제작하세요.
+Select * From payment;
+Select method, sum(Amount) From payment
+Group By method;
+Select paymentdate, method, sum(amount) as TotalAmount_day
+From payment
+Group by paymentdate, method
+Order by paymentdate ASC, method ASC;
+Create view daily_payment_summary 
+As Select paymentdate, method, sum(amount) as TotalAmount_day
+From payment
+Group by paymentdate, method
+Order by paymentdate ASC, method ASC;
+
+
+-- 10. 정산을 위하여 월별로 카드(1), 이체(2), 현금(3) 순으로 총 결제금액 합계를 구하는 뷰흫 제작하세요.
+Select * From payment;
+Select paymentDate From payment
+group by paymentDate ;
+Select left(paymentdate,7) as paymentMonth 
+From payment;
+Select paymentdate, method, sum(amount) as TotalAmount_day
+From payment
+Group by paymentdate, method
+Order by paymentdate ASC, method ASC;
+Select left(paymentdate,7) as paymentMonth , method, sum(amount) as TotalAmount_Month
+From payment
+Group by paymentMonth, method
+Order by paymentMonth ASC, method ASC; 
+create View Monthly_payment_summary
+As Select left(paymentdate,7) as paymentMonth , method, sum(amount) as TotalAmount_Month
+From payment
+Group by paymentMonth, method
+Order by paymentMonth ASC, method ASC; 
+
+-- 답안 --
+Select Year(paymentDate) As YearPayment, Month(paymentDate) As Monthpayment, method, Sum(Amount) As totalAmount
+From Payment
+Group By YearPayment, MonthPayment, Method
+Order by YearPayment, Monthpayment, method;
+
+-- 11. 우리 가게 창립이래 역대 최고 매출일은 언제일까요. 뷰로 제작하세요.
+Select * from payment;
+Select paymentdate, Sum(Amount) as SumAmount
+From payment
+Group by paymentdate
+Order by SumAmount Desc
+limit 1;
+Create view HighestsaleDate As
+Select paymentdate, Sum(Amount) as SumAmount
+From payment
+Group by paymentdate
+Order by SumAmount Desc
+limit 1;
+
+-- 12. 직원들을 새로 뽑게 되었습니다. 인적사항을 db에 입력하세여. (insert)
+	-- joestar/ 시스템상 오늘 날짜 / 010-1111-2222/ 연봉 2800
+    -- Jotaro/ 시스템상 오늘 날짜 / 010-2222-3333/ 연봉 2800
+    -- Giovanna / 시스템 오늘 날짜 / 010-3333-4444 / 연봉 2800
+Alter table orders
+Drop Foreign Key orders_ibfk_2;
+alter table employee modify employeeId Int Auto_increment;
+Alter Table orders 
+Add Constraint
+Foreign Key (employeeId) References employee(employeeId);
+show create table employee;
+Start transaction;
+Insert Into employee (Name, HireDate, PhoneNumber, Activation, Salary)
+Values ('joestar', CurDate(), '010-1111-2222', 1, '연봉 2800'),
+       ('Jotaro', CurDate(), '010-2222-3333', 1, '연봉 2800'),
+       ('Giovanna', CurDate(), '010-3333-4444', 1, '연봉 2800' );
+Select * from employee Where HireDate = Curdate();
+commit;
