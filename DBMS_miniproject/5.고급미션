@@ -1,0 +1,194 @@
+-- 05. 고급 미션
+-- 1. 130번 고객의 주문내역이 누락되었습니다, 다행히도 영수증이 있어서 복구 할 수 있었네요! 어떤 직원이 주문을 받았는 지 모르니, 
+--     Reaper가 주문을 받았다 치고, 2024.05.01날짜로 Americano 2잔, choco Cake 2개를 카드로 주문 및 구매한 데이터를 추가해보세요.
+Select * from orders;
+Select *
+From orders
+Where customerId = 130;
+Select * From employee Where name = 'Reaper';  --  employeeId : 1
+alter table orders modify orderId Int Auto_increment;
+Alter table orderdetail
+Drop Foreign Key orderdetail_ibfk_1;
+alter table orders modify orderId Int Auto_increment;
+Alter table payment
+Drop Foreign Key payment_ibfk_1;
+alter table orders modify orderId Int Auto_increment;
+show create table orders;
+Alter Table orderdetail 
+Add Constraint 
+Foreign Key (orderId) References orders(orderId);
+Alter Table payment
+Add Constraint
+Foreign Key (orderId) References orders(orderId);
+Alter table orderdetail modify orderItemId int AUTO_INCREMENT;
+Alter table payment modify paymentId int Auto_Increment;
+-- 1차 사전작업완 -- : orderid, orderItemId가 자동으로 번호 매기도록
+Select * From orders Where customerid=130; -- totalPrice : orderdetail에서 값 받아옴
+Select * from orderdetail; -- price는 menu에서 menuId를 통해 가져온 값* Quantity
+Select * From menu Where menuName in('Americano', 'choco cake'); -- A :1001 2잔 , C :1026 2잔
+Select * From payment; -- Amount는 orders에서 totalprice  -- 결제는 카드
+-- 자동화는 일단 패스 해도 되는 건가??? 
+-- 입력할 값(수동) -> Americano : 2 -> 5000, choco cake : 8000, 총액 : 13000
+Insert into orders(CustomerId, OrderDate, Status, TotalPrice, EmployeeId)
+Values (130, '2024-05-01', 1, 13000, 1);
+Insert into orderdetail(MenuId, OrderId, Quantity, Price)
+Values (1001, 501, 2, 5000),
+	   (1026, 501, 2, 8000);
+Insert into orderdetail(OrderItemId, OrderId, MenuId, Quantity, Price)
+Values (1503, 491, 1029, 1, 4500);
+Delete From orderdetail Where orderItemId = 1530;
+Insert into payment(OrderId, paymentDate, Method, Amount)
+Values (501, '2024-05-01', 1, 13000);
+
+-- 2. 여테까지의 총 주문수, 총 매출, 평균 매출을 일자별로 조회할 수 있도록 뷰를 제작하세요.
+Select * From orders;
+Select count(*), sum(totalPrice), avg(totalPrice) From orders;
+Select orderdate, count(*) as 총_주문수, sum(totalPrice) as 총_매출, round(avg(totalPrice),2) as 평균_매출
+From orders
+Group By orderdate
+Order by orderdate ASC;
+Create view dateSearch 
+as Select orderdate, count(*) as 총_주문수, sum(totalPrice) as 총_매출, round(avg(totalPrice),2) as 평균_매출
+From orders
+Group By orderdate
+Order by orderdate ASC;
+
+-- 답안 -- 누락한 정보가 있음 -> status가 canceal인 경우는 빼줘야하기에 where문으로 status = 1인 조건이 들어가야됨.
+Select O.orderDate, Count(O.orderId) As TodayOrder,
+					Sum(OD.price) As TodayPrice, Round(Avg(od.price), 0) As TodayPriceAvg
+From Orders O
+Left Outer Join OrderDetail OD On O.orderID = OD.orderId
+Where O.status = 1
+Group By O.orderDate
+Order by O.orderDate;
+
+-- 3. 고객이 한번 주문할 때 평균적으로 몇 개의 메뉴를 얼마나 금액으로 주문하는지 구하는 뷰를 제작하세요.
+Select * From orderdetail;
+Select avg(menuCount)
+From ( Select orderId, count(menuId) as menuCount
+		From orderdetail
+		Group by orderId ) as OrderMenucount;  -- subquary(inline View)는 alias(별칭) 필수!!
+Create view AvgOrderMenuCount
+as Select avg(menuCount)
+From ( Select orderId, count(menuId) as menuCount
+		From orderdetail
+		Group by orderId ) as OrderMenucount;
+        
+-- 답안(inner Join사용) 
+Select C.customerID, Truncate(Sum(OD.quantity)/Count(O.orderID),0) As AvgQuantity
+From Customer C
+Inner Join Orders O On C.customerId = O.customerID
+Inner Join OrderDetail OD On O.orderID = OD.orderID
+Where O.status=1
+Group By C.customerID
+Order By C.customerId;
+
+-- 4. 퇴사자의 퇴직금 산정을 위해 입사일과 오늘 날짜를 기준으로, 근무한 개월 수 x 급여의 10%로 퇴직금을 계산하세요.
+-- 		근무한 개월 수의 경우 한달을 30일로 계산.,, 남으면 버림(94일 > 3개월 4일 > 3개월), 1원 단위 버림
+Select * From employee Where Activation = 0;
+Select Name, HireDate, Round(DateDiff(Curdate(),hireDate) / 30,0) as 근무개월수, right(salary,4), 
+		Truncate( Round( right(salary,4)/12,0 )*0.1*Round( DateDiff( Curdate(),hireDate ) / 30,0 ), -1 ) as 퇴직금 
+From employee 
+Where Activation = 0;
+
+-- 5. 고객들이 어떤 종류의 메뉴에 얼마만큼 결제했는지, 카테고리를 기준으로 통계를 내보려고 합니다.
+-- 		고객별 메뉴의 카테고리 별로 총 결제금액을 구하는 뷰를 제작해 주세요.
+-- 		이때 고객이 결제하지 않은 카테고리에 대해서도 결과를 구하세요(Hint : Union)
+Select * from menu;
+Select MenuId, sum(price) as totalMenuPrice from orderdetail
+Group By MenuId
+Order by MenuId asc;
+Select M.Menucategory, Coalesce(Sum(OD.Price), 0) as TotalMenuPrice
+From Menu M
+Left Join OrderDetail OD On M.menuId = OD.MenuId
+Group By M.MenuCategory
+Order By M.MenuCategory ASC;
+Create View Category_sales
+as Select M.Menucategory, Coalesce(Sum(OD.Price), 0) as TotalMenuPrice
+From Menu M
+Left Join OrderDetail OD On M.menuId = OD.MenuId
+Group By M.MenuCategory
+Order By M.MenuCategory ASC;
+
+-- 답안 --
+Select C.customerName, Ca.Category, Sum(OD.Price)
+From Customer C
+Inner Join (
+			Select 1 As Category Union
+            Select 2 As Category Union
+            Select 3 As Category Union
+            Select 4 As Category Union
+            Select 5 As Category Union
+            Select 6 As Category) As Ca
+Left Outer Join Orders O On C.customerID = O.customerId
+Left Outer Join OrderDetail OD On OD.OrderID = O.orderID
+Left Outer Join Menu M On Ca.Category = M.menuCategory
+Group By C.customerName, Ca.Category
+Order By C.customerName, Ca.Category;
+
+-- 6. 촐 평균 구매금액보다 많이 구매한 고객들에 대해 VIP로 관리하고자 합니다. 고객 테이블에 VIP 필드를 추가한 후, 여태 결제된 총 평균 금액들 보다 많이 결제된 고객들을 선별하여 VIP를
+-- 	  부여하고, 그렇지 않은 고객들은 해당 필드를 비워두세요.
+Alter table customer add Column VIP varchar(3);
+select * from customer;
+Select * From payment;
+Select avg(Amount) From payment;
+Select O.CustomerID, Sum(O.TotalPrice) from orders O
+Join customer C On O.customerId = C.customerId
+Group by O.CustomerId;
+Select * from orders O
+Join customer C On O.customerId = C.customerId
+Join Payment P On P.orderId = O.orderId
+;
+-- 못 품 --
+-- 답안 --
+Start Transaction;
+Set sql_safe_updates = 0;
+Update Customer Set VIP = 'VIP'
+Where customerID in (
+		-- 제일 먼저 해야 할 것, 고객 별 평균 결제금액
+        Select O.CustomerID
+        From Orders O
+        Group By O.customerID
+        Having Avg(o.totalprice) > (
+				Select Avg(O2.totalPrice)
+                From Orders O2
+                Where O2.status=1)
+		);
+
+-- 7. 개인정보 보호 차원에서 각 고객들의 모든 정보들 중, 이름과 전화번호에 마스킹 처리가 필요하게 되었습니다. 고객의 이름은 맨 앞 두글자 출력 + **** + 맨 뒤 두글자 출력
+-- 		고객 핸드폰 번호는 가운데 번호를 모두 ****로 마스킹 처리하여 마스킹된 모든 고객 정보를 출력하는 뷰를 만드세요
+-- 		이때 Guest인 고객의 경우, 별도로 이름을 변경하지 마세요.
+Select * from customer;
+Select concat( left(CustomerName,2), '****', right(CustomerName, 2) ) as CustomerName
+From customer
+Where CustomerName not like 'guest%';
+Select concat( left(CustomerPhone,4), '****', right(CustomerPhone, 5) ) as CustomerPhone
+From customer;
+Start transaction;
+Create view customerInfo
+as Select 
+		customerId, 
+		Case 
+			When CustomerName Like 'Guest%' Then CustomerName
+			Else concat( left(CustomerName,2), '****', right(CustomerName, 2) )
+		End as CustomerName,
+		concat( left(CustomerPhone,4), '****', right(CustomerPhone, 5) ) as CustomerPhone,
+		BirthDay,
+		Point,
+		MarketingAgree,
+		Vip
+	From customer;
+Select * From customerInfo;
+
+-- 8. 여태까지 각각의 주문에 대해 각 직원들이 본인들의 재량껏 포인트를 지급해 왔었습니다. 그러나 이제는 주문 테이블에서 EarnPoint열을 추가해서 기준치 이상의 포인트를 지급할 수 없게끔 제한
+-- 		기존의 포인트 적립액은 알 수 없으니, 과거 날짜에 대한 포인트는 모두 0으로 세팅하고, 주문이 이루어질 경우 구매금액의 10%를 초과하여 포인트를 제공할 수 없도록 하세요.
+Select * from orders;
+Alter table orders add column EarnPoint Int;
+Alter table orders modify EarnPoint Int Not Null default 0 ;
+Update orders
+Set Earnpoint = 0
+Where EarnPoint Is Null;
+Set sql_safe_updates = 0;
+start transaction;
+Alter table orders add Constraint EarnPoint_Rule check (EarnPoint <= TotalPrice*0.1);
+commit;
