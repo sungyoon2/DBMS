@@ -1,0 +1,91 @@
+-- 02. 컬럼 구성
+-- Menu table
+Select * From menu;
+start transaction;
+Update menu
+Set menucategory = Case 
+	When menucategory = 'Beverage' Then '1'
+    When menucategory = 'Juice' Then '2'
+    When menucategory = 'Ade' Then '3'
+    When menucategory = 'Dessert' Then '4'
+    When menucategory = 'Sandwich' Then '5'
+    When menucategory = 'Bakery' Then '6'
+    else menucategory = '99' end
+    ;
+commit;
+start transaction;
+Update menu Set menuprice = replace(menuprice , ',' , '');
+commit;
+start transaction;
+Update menu Set Activation = case
+	When Activation = 'Yes' Then '1'
+    When Activation = 'No' Then '0'
+    end;
+commit;
+Create index menuNameIndex On Menu(Menuname);
+show index From menu;
+
+Select * From customer;
+start transaction;
+Select case 
+	When MarketingAgree = 'Yes' Then 1
+    When MarketingAgree = 'No' Then 0
+    end as MarketingAgree
+From customer;
+Update customer
+Set MarketingAgree = case 
+	When MarketingAgree = 'Yes' Then 1
+    When MarketingAgree = 'No' Then 0
+    end;
+commit;
+
+Select * From employee;
+Select case
+	When Activation = 'Available' Then 1
+    When Activation = 'leaving' Then 0
+    end as Aactivation
+From employee;
+Start transaction;
+Update employee 
+Set Activation = case
+	When Activation = 'Available' Then 1
+    When Activation = 'leaving' Then 0
+    end;
+commit;
+Start transaction;
+Update employee
+Set salary = concat('연봉',salary);
+show create table employee;
+Alter table employee modify column salary varchar(20);
+commit;
+Select * From orders;
+Select case
+	When Status = 'Completed' Then 1
+    When Status = 'Cancelled' Then 0
+    end as A 
+From orders;
+Start transaction;
+Update orders Set status = case
+	When Status = 'Completed' Then 1
+    When Status = 'Cancelled' Then 0
+    end;
+commit;
+Start transaction;
+show create table employee;
+
+Select * From payment;
+Alter table payment change Methode Method Varchar(20);
+Select case
+	When Method = 'Card' Then 1
+    When Method = 'Bank' Then 2
+    When Method = 'Cash' Then 3
+    Else 99 end as A
+From payment;
+Start Transaction;
+Update payment 
+Set Method = case
+	When Method = 'Card' Then 1
+    When Method = 'Bank' Then 2
+    When Method = 'Cash' Then 3
+    Else 99 end;
+Alter table payment Drop column Status;
