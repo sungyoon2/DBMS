@@ -1,0 +1,258 @@
+-- 04. 중급 미션
+
+-- 1. 고객들이 처름으로 카페에서 결제를 한 날짜가 언제인지 알고 싶습니다. 고객별로 최초 결제일을 찾아서 확인할 수 있는 뷰를 제작/ 이때, 결제하지 않은 고객들도 모두 포함해서 출력하세요.
+Select * From customer;
+Select * From orders;
+Select C.customerId, Min(O.orderDate) From customer C
+left outer Join orders O On C.customerId = O.customerId
+Group by C.customerId
+Order by C.customerId Asc;
+  --  *** min은 가장 작은 수를 구하는 함수 & 집계함수에서 이용가능 => 그 그룹중 가장 작은값을 도출.
+Create View First_Date_Of_Order
+as Select C.customerId, Min(O.orderDate) From customer C
+left outer Join orders O On C.customerId = O.customerId
+Group by C.customerId
+Order by C.customerId Asc;
+
+-- 2. 결제 수단은 반드시 Card, Cash, Bank 만으로 입력되어야 합니다. 이 외의 값은 들어올 수 없도록 제약조건을 설정하세요.(constraint)
+alter table payment
+add constraint payment_Method_only Check ( Method in (1,2,3) );
+Select distinct method From payment;
+
+-- 3. 지금 퇴사한 직원들 중 가장 많은 판매금액을 기록한 직원은 누구일까요.
+Select * from employee;
+Select * from orders;
+Select E.employeeId, E.Name, sum(TotalPrice) as allTotal from employee E
+inner join orders O On E.employeeId = O.employeeId
+Where E.Activation = 0 and O.status = 1
+Group By E.employeeId
+Order by allTotal Desc
+Limit 1;
+Drop view ExTopSales;
+Create View ExTopSales
+as Select E.employeeId, E.Name, sum(TotalPrice) as allTotal from employee E
+inner join orders O On E.employeeId = O.employeeId
+Where E.Activation = 0 and O.status = 1
+Group By E.employeeId
+Order by allTotal Desc
+Limit 1;
+
+-- 4. 최근 원자재 가격 상승으로 인해 Latte류는 10%인상, Sandwich류는 20% 가격 인상이 필요하게 되었습니다. 인상된 가격을 db에 적용하세요.(Update)
+Select * From menu;
+Select menuName, menuprice From menu Where menuName like '%Latte%';
+Select menuName, menuprice From menu m2 Where menuName like '%sandwich';
+Start transaction;
+Set sql_safe_updates = 0;
+Update menu 
+Set menuprice = menuprice*1.1
+Where menuName like '%Latte%';
+commit;
+start transaction;
+Update menu 
+Set menuprice = menuprice*1.2
+Where menuName like '%sandwich';
+commit;
+
+-- 5. 지금 판매중이지 않지만, 과거에 얼마나 판매되었는지 총 판매금액을 기준으로 조회할 수 있는 뷰를 제작하세요.
+Select * from menu;
+Select * From menu
+Where Activation = 0;
+Select * from orderdetail;
+Select M.menuname, sum(O.price) From orderdetail O , menu M
+Where O.menuid = M.MenuId and M.Activation = 0
+Group by M.Menuname;
+Create view Ex_Menusales 
+As Select M.menuname, sum(O.price) From orderdetail O , menu M
+Where O.menuid = M.MenuId and M.Activation = 0
+Group by M.Menuname;
+
+-- 답안 --
+Select M.menuName, Sum(OD.price)
+From Menu M
+Inner join Orderdetail OD On M.menuID = OD.menuID
+Where M.Activation = 0
+Group By M.menuName;
+
+-- 6. 고객이 어떤 날짜(최신순)에 어떤 메뉴를 얼마나 주문했고, 그 주문의 총 금액이 얼마인지 한번에 확인할 수 있도록 구성된 통합 뷰를 제작하세요.
+Select * from customer;
+Select * From orders
+Order by customerId Asc, Orderdate Desc;
+Select * From orderdetail;
+Select * From menu;
+Select O.customerId, M.menuName, O.orderdate, sum(OD.price) From orders O
+inner Join orderdetail OD On O.orderId = OD.OrderId
+inner Join menu M On OD.menuId = M.menuId
+Group by O.customerId, M.menuName, O.orderdate
+Order by O.customerId Asc, O.Orderdate Desc;
+Create View customerOrder 
+as Select O.customerId, M.menuName, O.orderdate, sum(OD.price) From orders O
+inner Join orderdetail OD On O.orderId = OD.OrderId
+inner Join menu M On OD.menuId = M.menuId
+Group by O.customerId, M.menuName, O.orderdate
+Order by O.customerId Asc, O.Orderdate Desc;
+
+-- 7. 판매중인 메뉴들만 지금까지 얼마나 판매되었고, 주문수는 몇 건인지, 이로 인해 매출이 얼마나 발생하였는지 볼 수 있는 뷰를 제작하세요.
+Select * From menu;
+Select count(*) From orderdetail
+where menuId = 1000;
+Select M.Menuname, count(*), Sum(OD.price) from menu M
+inner Join orderdetail OD On M.MenuId = OD.Menuid
+Where M.activation = 1
+Group by M.Menuname
+Order by M.Menuname;
+Create view detail_menus 
+as Select M.Menuname, count(*), Sum(OD.price) from menu M
+inner Join orderdetail OD On M.MenuId = OD.Menuid
+Where M.activation = 1
+Group by M.Menuname
+Order by M.Menuname;
+
+-- 8. 월별, 직원 별 결제금액의 합계를 구하세요(날짜 내림차순, 매출 많은 순 정렬)
+Select * from orders;
+Select * from employee;
+Select E.name, left(O.orderdate,7) as Month, Sum(O.totalPrice) as price_All From orders O
+Join Employee E On E.employeeId = O.employeeId
+Group By E.name, Month
+Order By Month Desc, price_All asc;
+
+-- 답안 (포기) --  ?? 월별, 직원별이 문제인데 이걸 해결하려면 어떤식으로 바꿔야죠??
+Select P.paymentDate, E.name, Sum(P.Amount) As totAmount
+From Employee E
+Inner Join Orders O On E.employeeID = O.employeeId
+Inner Join Payment P On O.orderID = P.OrderId
+Group By P.paymentdate, E.employeeId
+Order by P.paymentDate Desc, totAmount;
+
+-- 9. 일부 주문들 중 취소되는 경우가 있는데, 주문 취소가 메뉴와 고객과 관련이 있는지 알아보고자, 모든 고객별로 취소 비율을 구하는 뷰를 제작하세요.
+Select * From orders;
+Select * from customer;
+Select CustomerName, count(*)
+From Customer C
+Join orders O On C.customerID = O.customerId
+Group by C.customername
+Order By C.customername;
+Select CustomerName, count(*)
+From Customer C
+Join orders O On C.customerID = O.customerId
+Where O.status = 0
+Group by C.customername
+Order By C.customername;
+Select C1.CustomerName, 
+( Select count(*) From Customer C
+Join orders O On C.customerID = O.customerId
+Where O.status = 0
+Group by C.customername
+Order By C.customername ) as Canceal, 
+( Select count(*) From Customer C
+Join orders O On C.customerID = O.customerId
+Group by C.customername
+Order By C.customername ) as All_,
+(Calceal / All_)
+From Customer C1
+Join orders O1 On C1.customerID = O1.customerId; -- 실패
+-- 수정 --
+Select 
+    C.customerId,
+    C.customerName,
+    COUNT(Case When O.status = 0 Then 1 End) as CancelCount,
+    COUNT(*) AS TotalOrders,
+    concat(ROUND(COUNT(Case When O.status = 0 Then 1 End) / COUNT(*), 4)*100,'%') as CancelRate
+From 
+    Customer C
+Join 
+    Orders O On C.customerId = O.customerId
+Group by 
+    C.customerId, C.customerName
+Order by 
+    C.customerId;
+    
+-- 답안 -- => 나의 답은 null값이 있을 경우 제외하기에 모든 고객에 대하여 값이 산출되지 않는 오류가 발생한다(200row인데 나의 답은 181row)
+       -- IFNull함수를 이용해 Null값일때에도 사용할 수 있도록 값을 받아와야 하며, left join을 이용해 모든 customer에 대한 정보를 조인되어야 한다.
+Select C.customerID, IFNull( Concat(Round(Sum(not(O.status))/Count(O.status)*100,0),'%'),0) As CanclePer
+From Customer C
+Left Outer Join Orders O On C.customerID = O.customerID
+Group By C.customerID
+Order By C.customerID;
+
+-- 10. 일부 주문들 중 취소되는 경우가 있는데, 주문 취소가 메뉴와 직원과 관련이 있는지 알아보고자, 모든 직원 별로 취소 비율을 구하는 뷰를 제작하세요.
+Select
+    E.employeeId,
+    E.Name,
+    COUNT(Case When O.status = 0 Then 1 End) as CancelCount,
+    COUNT(*) AS TotalOrders,
+    ROUND(COUNT(Case When O.status = 0 Then 1 End) / COUNT(*), 4) as CancelRate
+From
+    Employee E
+Join 
+    Orders O On E.employeeId = O.EmployeeId
+Group By 
+    E.employeeId, E.Name
+Order By 
+    E.employeeId;
+Create View
+	EmployeeCancealRate
+As Select
+    E.employeeId,
+    E.Name,
+    COUNT(Case When O.status = 0 Then 1 End) as CancelCount,
+    COUNT(*) AS TotalOrders,
+    ROUND(COUNT(Case When O.status = 0 Then 1 End) / COUNT(*), 4) as CancelRate
+From
+    Employee E
+Join 
+    Orders O On E.employeeId = O.EmployeeId
+Group By 
+    E.employeeId, E.Name
+Order By 
+    E.employeeId;
+-- 답안 -- => 9번의 오류와 같은 오류를 범함
+Select O.employeeID, IFNull( Concat(Round(Sum(not(O.status))/Count(O.status)*100,0),'%'),0) As CanclePer
+From Employee E
+Left Outer Join Orders O On E.employeeID = O.employeeID
+Group By O.employeeID
+Order By O.employeeID;
+
+
+-- 11. 일부 주문들 중 취소되는 경우가 있는데, 주문 취소가 메뉴와 관련이 있는지 알아보고자, 모든 메뉴 별로 취소 비율을 구하는 뷰를 제작하세요.
+Select 
+    M.menuId,
+    M.menuName,
+    COUNT(Case When O.status = 0 Then 1 End) as CancelCount,
+    COUNT(*) as TotalOrders,
+    ROUND(COUNT(Case When O.status = 0 Then 1 End) / COUNT(*), 4) as CancelRate
+From 
+    Menu M
+Join 
+    Orderdetail OD On M.menuId = OD.menuId
+Join
+	Orders O On O.orderId = OD.OrderID
+Group By 
+    M.menuId, M.menuName
+Order By 
+    M.menuId;
+Create view 
+	MenuCancelRate
+As Select 
+    M.menuId,
+    M.menuName,
+    COUNT(Case When O.status = 0 Then 1 End) as CancelCount,
+    COUNT(*) as TotalOrders,
+    ROUND(COUNT(Case When O.status = 0 Then 1 End) / COUNT(*), 4) as CancelRate
+From 
+    Menu M
+Join 
+    Orderdetail OD On M.menuId = OD.menuId
+Join
+	Orders O On O.orderId = OD.OrderID
+Group By 
+    M.menuId, M.menuName
+Order By 
+    M.menuId;
+    
+-- 답안 -- => 10번의 오류와 같은 오류를 범함
+Select M.menuName, IFNull( Concat(Round(Sum(not(O.status))/Count(O.status)*100,0),'%'),0) As CanclePer
+From Menu M
+Left Join Orderdetail OD On M.menuId = OD.menuId
+Left Join Orders O On O.orderId = OD.OrderID
+Group By M.menuId
+Order By M.menuId;
