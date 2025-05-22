@@ -1,4 +1,3 @@
-'''
 Create Database miniproject;
 use miniproject;
 
@@ -84,4 +83,3 @@ Lines Terminated By '\n' -- csv 파일의 개행 구분기호
 Ignore 1 Lines -- csv파일의 첫번째 줄(컬럼 헤더)를 무시
 ;
 Select * From Orderdetail;
-'''
