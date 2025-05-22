@@ -1,0 +1,87 @@
+'''
+Create Database miniproject;
+use miniproject;
+
+-- 01. 각 테이블 생성 및 데이터 import
+
+-- 메뉴 테이블 : 주문상세 테이블과 1:N
+Create Table Menu (
+MenulID Int Primary Key,
+MenuName Varchar(100) not null,
+MenuPrice int,
+MenuCategory Varchar(20),
+Activation Varchar(3)
+);
+Alter table menu Modify menuPrice Varchar(10);
+show create table menu;
+Select * From menu;
+
+-- 고객 테이블 : 주문 테이블 1:N
+Create Table Customer (
+CustomerID Int Primary Key,
+CustomerName Varchar(100) not null,
+CustomerPhone Varchar(13),
+Birthday Date,
+Point Int,
+MarketingAgree Varchar(3)
+);
+Select * from customer;
+
+-- 직원 테이블 : 주믄 테이블과 1:N
+Create Table Employee (
+EmployeeID Int Primary Key,
+Name Varchar(100) not null,
+HireDate Date,
+PhoneNumber Varchar(13),
+Activation Varchar(10),
+Salary Int
+);
+Select * From Employee;
+
+-- 주문 테이블 : 결제테이블 1:1 / : 주문상세 테이블 1:N
+Create Table Orders (
+orderID Int primary Key,
+CustomerID Int,
+OrderDate Date,
+Status Varchar(50),
+TotalPrice Int,
+EmployeeId Int,
+Foreign Key (customerId) References customer(customerID),
+Foreign Key (EmployeeId) References employee(employeeID)
+);
+Select * from Orders;
+
+-- 결제 테이블
+Create Table Payment (
+PaymentId Int Primary key,
+OrderId Int not null,
+paymentDate Date not null,
+Methode Varchar(10),
+Status Varchar(10),
+Amount Int,
+Foreign Key (orderId) References orders(orderId)
+);
+Select * From Payment;
+
+-- 주문상세 테이블
+Create Table OrderDetail (
+OrderItemID Int Primary Key,
+OrderID Int not null,
+MenuId Int,
+Quantity Int,
+Price Int,
+Foreign Key (orderId) References orders(orderID), -- 오류 발견 orderID는 payment 또한 외래키로 설정되어 있는데 payment에서 가져오는 것으로 해놔서 오류 발생 -> orders로 바꿈
+Foreign Key (MenuId) References Menu(MenuId)
+);
+Set sql_safe_updates= 0;
+Delete From orderdetail;
+-- 1000개가 넘어가 오래 걸리므로 infile로 실행
+Load Data Infile 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/orderdetail.csv'
+Into Table orderdetail
+Fields Terminated By ',' -- csv 파일의 구분기호 지정
+Enclosed By '"' -- 값이 해당 기호로 싸여있다면 제거(포장 제거), 생략 가능
+Lines Terminated By '\n' -- csv 파일의 개행 구분기호
+Ignore 1 Lines -- csv파일의 첫번째 줄(컬럼 헤더)를 무시
+;
+Select * From Orderdetail;
+'''
